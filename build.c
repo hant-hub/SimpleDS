@@ -17,7 +17,8 @@ int main(int argc, char *argv[]) {
                     "https://raw.githubusercontent.com/hant-hub/Cutils/refs/"
                     "heads/main/include/cutils.h");
                 sb_cmd_opt("O");
-                sb_cmd_opt("output-dir=lib/include/");
+                sb_cmd_opt("-output-dir");
+                sb_cmd_arg("lib/include/");
             }
         }
 
