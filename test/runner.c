@@ -28,8 +28,9 @@ void runtest(const char *name, int verbose) {
         dup2(fd, STDERR_FILENO);
     }
 
-    execlp("valgrind", "valgrind", "--leak-check=full", "--error-exitcode=69",
-           "--", name, NULL);
+    setenv("ASAN_OPTIONS", "exitcode=69", 1);
+
+    execlp(name, name, NULL);
 
     printf("failed to find file\n");
     exit(-1);

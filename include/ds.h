@@ -96,126 +96,472 @@
 #define MAX_LOAD 0.9
 #define MIN_CAP 16
 
-#define HashMap(key, val)                                                      \
-    struct {                                                                   \
+#define DefHashMapDecl(name, key, val)                                         \
+    typedef struct name {                                                      \
         Allocator a;                                                           \
         u32 cap;                                                               \
         u32 size;                                                              \
         struct {                                                               \
             key k;                                                             \
-            i8 m;                                                              \
+            i32 m;                                                             \
         } *keys;                                                               \
         val *vals;                                                             \
-    }
+    } name;                                                                    \
+    void name##Ins(name *, key, val);                                          \
+    val *name##Get(name *, key);                                               \
+    void name##Del(name *, key);                                               \
+    void name##Free(name *);
 
-#define HashIns(map, key, val)                                                 \
-    do {                                                                       \
-        if (map.cap * MAX_LOAD <= map.size + 1) {                              \
-            debuglog("hit");                                                   \
-            u64 oldcap = map.cap;                                              \
-            map.cap = map.cap ? map.cap * 2 : MIN_CAP;                         \
+#define DefHashMapImpl(name, key, val)                                         \
+    void name##Ins(name *map, key ky, val vl) {                                \
+        if (map->cap * MAX_LOAD <= map->size + 1) {                            \
+            u64 oldcap = map->cap;                                             \
+            map->cap = map->cap ? map->cap * 2 : MIN_CAP;                      \
                                                                                \
-            typeof(map.keys) oldkeys = map.keys;                               \
-            typeof(map.vals) oldvals = map.vals;                               \
+            typeof(map->keys) oldkeys = map->keys;                             \
+            typeof(map->vals) oldvals = map->vals;                             \
                                                                                \
-            map.keys = Alloc(map.a, map.cap * sizeof(map.keys[0]));            \
-            map.vals = Alloc(map.a, map.cap * sizeof(map.vals[0]));            \
+            map->keys = Alloc(map->a, map->cap * sizeof(map->keys[0]));        \
+            map->vals = Alloc(map->a, map->cap * sizeof(map->vals[0]));        \
                                                                                \
-            memset(map.keys, -1, map.cap * sizeof(map.keys[0]));               \
-                                                                               \
+            memset(map->keys, -1, map->cap * sizeof(map->keys[0]));            \
             for (u32 i = 0; i < oldcap; i++) {                                 \
                 if (oldkeys[i].m == -1)                                        \
                     continue;                                                  \
                                                                                \
-                typeof(map.keys[0].k) tempk = key;                             \
-                typeof(map.vals[0]) tempv = val;                               \
+                typeof(map->keys[0].k) tempk = oldkeys[i].k;                   \
+                typeof(map->vals[0]) tempv = oldvals[i];                       \
                 u32 hash = FNVHash32((u8 *)&tempk, sizeof(tempk));             \
                                                                                \
-                u32 idx = hash % map.cap;                                      \
+                u32 idx = hash % map->cap;                                     \
                 u32 dist = 0;                                                  \
                                                                                \
-                for (u64 i = 0; i < map.cap; i++) {                            \
-                    if (map.keys[idx].m == -1) {                               \
-                        map.keys[idx].k = tempk;                               \
-                        map.keys[idx].m = dist;                                \
-                        map.vals[idx] = tempv;                                 \
+                for (u64 i = 0; i < map->cap; i++) {                           \
+                    if (map->keys[idx].m == -1) {                              \
+                        map->keys[idx].k = tempk;                              \
+                        map->keys[idx].m = dist;                               \
+                        map->vals[idx] = tempv;                                \
                         break;                                                 \
                     }                                                          \
-                    if (map.keys[idx].m < dist) {                              \
-                        typeof(map.keys[0].k) tmpkey = map.keys[idx].k;        \
-                        typeof(map.vals[0]) tmpval = map.vals[idx];            \
-                        u32 tmpdist = map.keys[i].m;                           \
+                    if (map->keys[idx].m < dist) {                             \
+                        typeof(map->keys[0].k) tmpkey = map->keys[idx].k;      \
+                        typeof(map->vals[0]) tmpval = map->vals[idx];          \
+                        u32 tmpdist = map->keys[idx].m;                        \
                                                                                \
-                        map.keys[idx].k = tempk;                               \
-                        map.keys[idx].m = dist;                                \
-                        map.vals[idx] = tempv;                                 \
+                        map->keys[idx].k = tempk;                              \
+                        map->keys[idx].m = dist;                               \
+                        map->vals[idx] = tempv;                                \
                                                                                \
                         tempk = tmpkey;                                        \
                         tempv = tmpval;                                        \
                         dist = tmpdist;                                        \
                     }                                                          \
                                                                                \
-                    if (map.keys[idx].k == tempk) {                            \
-                        map.vals[idx] = tempv;                                 \
+                    if (map->keys[idx].k == tempk) {                           \
+                        map->vals[idx] = tempv;                                \
                         break;                                                 \
                     }                                                          \
-                    idx = (idx + 1) % map.cap;                                 \
+                    idx = (idx + 1) % map->cap;                                \
                     dist++;                                                    \
                 }                                                              \
             }                                                                  \
                                                                                \
-            Free(map.a, oldkeys, oldcap * sizeof(map.keys[0]));                \
-            Free(map.a, oldvals, oldcap * sizeof(map.vals[0]));                \
+            Free(map->a, oldkeys, oldcap * sizeof(map->keys[0]));              \
+            Free(map->a, oldvals, oldcap * sizeof(map->vals[0]));              \
         }                                                                      \
                                                                                \
-        typeof(map.keys[0].k) tempk = key;                                     \
-        typeof(map.vals[0]) tempv = val;                                       \
+        typeof(map->keys[0].k) tempk = ky;                                     \
+        typeof(map->vals[0]) tempv = vl;                                       \
         u32 hash = FNVHash32((u8 *)&tempk, sizeof(tempk));                     \
                                                                                \
-        u32 idx = hash % map.cap;                                              \
+        u32 idx = hash % map->cap;                                             \
         u32 dist = 0;                                                          \
                                                                                \
-        debuglog("idx: %d\thash: %d", idx, hash);                              \
-                                                                               \
-        for (u64 i = 0; i < map.cap; i++) {                                    \
-            if (map.keys[idx].m == -1) {                                       \
-                map.keys[idx].k = tempk;                                       \
-                map.keys[idx].m = dist;                                        \
-                map.vals[idx] = tempv;                                         \
-                map.size++;                                                    \
+        for (u64 i = 0; i < map->cap; i++) {                                   \
+            if (map->keys[idx].m == -1) {                                      \
+                map->keys[idx].k = tempk;                                      \
+                map->keys[idx].m = dist;                                       \
+                map->vals[idx] = tempv;                                        \
+                map->size++;                                                   \
                 break;                                                         \
             }                                                                  \
-            if (map.keys[idx].m < dist) {                                      \
-                typeof(map.keys[0].k) tmpkey = map.keys[idx].k;                \
-                typeof(map.vals[0]) tmpval = map.vals[idx];                    \
-                u32 tmpdist = map.keys[i].m;                                   \
+            if (map->keys[idx].m < dist) {                                     \
+                typeof(map->keys[0].k) tmpkey = map->keys[idx].k;              \
+                typeof(map->vals[0]) tmpval = map->vals[idx];                  \
+                u32 tmpdist = map->keys[idx].m;                                \
                                                                                \
-                map.keys[idx].k = tempk;                                       \
-                map.keys[idx].m = dist;                                        \
-                map.vals[idx] = tempv;                                         \
+                map->keys[idx].k = tempk;                                      \
+                map->keys[idx].m = dist;                                       \
+                map->vals[idx] = tempv;                                        \
                                                                                \
                 tempk = tmpkey;                                                \
                 tempv = tmpval;                                                \
                 dist = tmpdist;                                                \
-                debuglog("robbing");                                           \
             }                                                                  \
                                                                                \
-            if (map.keys[idx].k == tempk) {                                    \
-                map.vals[idx] = tempv;                                         \
+            if (map->keys[idx].k == tempk) {                                   \
+                map->vals[idx] = tempv;                                        \
                 break;                                                         \
             }                                                                  \
-            idx = (idx + 1) % map.cap;                                         \
+            idx = (idx + 1) % map->cap;                                        \
             dist++;                                                            \
         }                                                                      \
-    } while (0)
+    }                                                                          \
+    val *name##Get(name *map, key ky) {                                        \
+        typeof(map->keys[0].k) tempk = ky;                                     \
+        u32 hash = FNVHash32((u8 *)&tempk, sizeof(tempk));                     \
+                                                                               \
+        u32 idx = hash % map->cap;                                             \
+        u32 dist = 0;                                                          \
+                                                                               \
+        for (u64 i = 0; i < map->cap; i++) {                                   \
+            if (map->keys[idx].m == -1) {                                      \
+                return NULL;                                                   \
+            }                                                                  \
+            if (map->keys[idx].m < dist) {                                     \
+                return NULL;                                                   \
+            }                                                                  \
+                                                                               \
+            if (map->keys[idx].k == tempk) {                                   \
+                return &map->vals[idx];                                        \
+            }                                                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            dist++;                                                            \
+        }                                                                      \
+                                                                               \
+        return NULL;                                                           \
+    }                                                                          \
+    void name##Del(name *map, key ky) {                                        \
+                                                                               \
+        typeof(map->keys[0].k) tempk = ky;                                     \
+                                                                               \
+        u32 hash = FNVHash32((u8 *)&tempk, sizeof(tempk));                     \
+        u32 idx = hash % map->cap;                                             \
+        u32 dist = 0;                                                          \
+                                                                               \
+        for (u64 i = 0; i < map->cap; i++) {                                   \
+            if (map->keys[idx].m == -1) {                                      \
+                return;                                                        \
+            }                                                                  \
+            if (map->keys[idx].m < dist) {                                     \
+                return;                                                        \
+            }                                                                  \
+                                                                               \
+            if (map->keys[idx].k == tempk) {                                   \
+                map->size--;                                                   \
+                idx = (idx + 1) % map->cap;                                    \
+                break;                                                         \
+            }                                                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            dist++;                                                            \
+        }                                                                      \
+                                                                               \
+        u32 prev = (idx + map->cap - 1) % map->cap;                            \
+        while (map->keys[idx].m != -1 && map->keys[idx].m > 0) {               \
+            map->keys[prev] = map->keys[idx];                                  \
+            map->keys[prev].m -= 1;                                            \
+                                                                               \
+            map->vals[prev] = map->vals[idx];                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            prev = (idx + map->cap - 1) % map->cap;                            \
+        }                                                                      \
+                                                                               \
+        map->keys[prev].m = -1;                                                \
+    }                                                                          \
+    void name##Reserve(name *map, u64 size) {                                  \
+        u32 oldcap = map->cap;                                                 \
+        while (map->cap < size) {                                              \
+            map->cap = map->cap ? map->cap * 2 : MIN_CAP;                      \
+        }                                                                      \
+                                                                               \
+        typeof(map->keys) oldkeys = map->keys;                                 \
+        typeof(map->vals) oldvals = map->vals;                                 \
+                                                                               \
+        map->keys = Alloc(map->a, map->cap * sizeof(map->keys[0]));            \
+        map->vals = Alloc(map->a, map->cap * sizeof(map->vals[0]));            \
+                                                                               \
+        memset(map->keys, -1, map->cap * sizeof(map->keys[0]));                \
+        for (u32 i = 0; i < oldcap; i++) {                                     \
+            if (oldkeys[i].m == -1)                                            \
+                continue;                                                      \
+                                                                               \
+            typeof(map->keys[0].k) tempk = oldkeys[i].k;                       \
+            typeof(map->vals[0]) tempv = oldvals[i];                           \
+            u32 hash = FNVHash32((u8 *)&tempk, sizeof(tempk));                 \
+                                                                               \
+            u32 idx = hash % map->cap;                                         \
+            u32 dist = 0;                                                      \
+                                                                               \
+            for (u64 i = 0; i < map->cap; i++) {                               \
+                if (map->keys[idx].m == -1) {                                  \
+                    map->keys[idx].k = tempk;                                  \
+                    map->keys[idx].m = dist;                                   \
+                    map->vals[idx] = tempv;                                    \
+                    break;                                                     \
+                }                                                              \
+                if (map->keys[idx].m < dist) {                                 \
+                    typeof(map->keys[0].k) tmpkey = map->keys[idx].k;          \
+                    typeof(map->vals[0]) tmpval = map->vals[idx];              \
+                    u32 tmpdist = map->keys[idx].m;                            \
+                                                                               \
+                    map->keys[idx].k = tempk;                                  \
+                    map->keys[idx].m = dist;                                   \
+                    map->vals[idx] = tempv;                                    \
+                                                                               \
+                    tempk = tmpkey;                                            \
+                    tempv = tmpval;                                            \
+                    dist = tmpdist;                                            \
+                }                                                              \
+                                                                               \
+                if (map->keys[idx].k == tempk) {                               \
+                    map->vals[idx] = tempv;                                    \
+                    break;                                                     \
+                }                                                              \
+                idx = (idx + 1) % map->cap;                                    \
+                dist++;                                                        \
+            }                                                                  \
+        }                                                                      \
+                                                                               \
+        Free(map->a, oldkeys, oldcap * sizeof(map->keys[0]));                  \
+        Free(map->a, oldvals, oldcap * sizeof(map->vals[0]));                  \
+    }                                                                          \
+    void name##Free(name *map) {                                               \
+        Free(map->a, map->keys, map->cap * sizeof(map->keys[0]));              \
+        Free(map->a, map->vals, map->cap * sizeof(map->vals[0]));              \
+    }
 
-#define HashDel(map, key, val)
-#define HashGet(map, key)
+#define DefStringMapDecl(name, val)                                            \
+    typedef struct name {                                                      \
+        Allocator a;                                                           \
+        u32 cap;                                                               \
+        u32 size;                                                              \
+        struct {                                                               \
+            SString k;                                                         \
+            i32 m;                                                             \
+        } *keys;                                                               \
+        val *vals;                                                             \
+    } name;                                                                    \
+    void nameIns(name *, SString, val);                                        \
+    val *nameGet(name *, SString);                                             \
+    void nameDel(name *, SString);                                             \
+    void nameFree(name *);
 
-#define HashResize(map, newsize)
+#define DefStringMapImpl(name, val)                                            \
+    void name##Ins(name *map, SString ky, val vl) {                            \
+        if (map->cap * MAX_LOAD <= map->size + 1) {                            \
+            u64 oldcap = map->cap;                                             \
+            map->cap = map->cap ? map->cap * 2 : MIN_CAP;                      \
+                                                                               \
+            typeof(map->keys) oldkeys = map->keys;                             \
+            typeof(map->vals) oldvals = map->vals;                             \
+                                                                               \
+            map->keys = Alloc(map->a, map->cap * sizeof(map->keys[0]));        \
+            map->vals = Alloc(map->a, map->cap * sizeof(map->vals[0]));        \
+                                                                               \
+            memset(map->keys, -1, map->cap * sizeof(map->keys[0]));            \
+            for (u32 i = 0; i < oldcap; i++) {                                 \
+                if (oldkeys[i].m == -1)                                        \
+                    continue;                                                  \
+                                                                               \
+                typeof(map->keys[0].k) tempk = oldkeys[i].k;                   \
+                typeof(map->vals[0]) tempv = oldvals[i];                       \
+                u32 hash = FNVHash32((u8 *)tempk.data, tempk.len);             \
+                                                                               \
+                u32 idx = hash % map->cap;                                     \
+                u32 dist = 0;                                                  \
+                                                                               \
+                for (u64 i = 0; i < map->cap; i++) {                           \
+                    if (map->keys[idx].m == -1) {                              \
+                        map->keys[idx].k = tempk;                              \
+                        map->keys[idx].m = dist;                               \
+                        map->vals[idx] = tempv;                                \
+                        break;                                                 \
+                    }                                                          \
+                    if (map->keys[idx].m < dist) {                             \
+                        typeof(map->keys[0].k) tmpkey = map->keys[idx].k;      \
+                        typeof(map->vals[0]) tmpval = map->vals[idx];          \
+                        u32 tmpdist = map->keys[idx].m;                        \
+                                                                               \
+                        map->keys[idx].k = tempk;                              \
+                        map->keys[idx].m = dist;                               \
+                        map->vals[idx] = tempv;                                \
+                                                                               \
+                        tempk = tmpkey;                                        \
+                        tempv = tmpval;                                        \
+                        dist = tmpdist;                                        \
+                    }                                                          \
+                                                                               \
+                    if (Sstrcmp(map->keys[idx].k, tempk)) {                    \
+                        map->vals[idx] = tempv;                                \
+                        break;                                                 \
+                    }                                                          \
+                    idx = (idx + 1) % map->cap;                                \
+                    dist++;                                                    \
+                }                                                              \
+            }                                                                  \
+                                                                               \
+            Free(map->a, oldkeys, oldcap * sizeof(map->keys[0]));              \
+            Free(map->a, oldvals, oldcap * sizeof(map->vals[0]));              \
+        }                                                                      \
+                                                                               \
+        typeof(map->keys[0].k) tempk = ky;                                     \
+        typeof(map->vals[0]) tempv = vl;                                       \
+        u32 hash = FNVHash32((u8 *)tempk.data, tempk.len);                     \
+                                                                               \
+        u32 idx = hash % map->cap;                                             \
+        u32 dist = 0;                                                          \
+                                                                               \
+        for (u64 i = 0; i < map->cap; i++) {                                   \
+            if (map->keys[idx].m == -1) {                                      \
+                map->keys[idx].k = tempk;                                      \
+                map->keys[idx].m = dist;                                       \
+                map->vals[idx] = tempv;                                        \
+                map->size++;                                                   \
+                break;                                                         \
+            }                                                                  \
+            if (map->keys[idx].m < dist) {                                     \
+                typeof(map->keys[0].k) tmpkey = map->keys[idx].k;              \
+                typeof(map->vals[0]) tmpval = map->vals[idx];                  \
+                u32 tmpdist = map->keys[idx].m;                                \
+                                                                               \
+                map->keys[idx].k = tempk;                                      \
+                map->keys[idx].m = dist;                                       \
+                map->vals[idx] = tempv;                                        \
+                                                                               \
+                tempk = tmpkey;                                                \
+                tempv = tmpval;                                                \
+                dist = tmpdist;                                                \
+            }                                                                  \
+                                                                               \
+            if (Sstrcmp(map->keys[idx].k, tempk)) {                            \
+                map->vals[idx] = tempv;                                        \
+                break;                                                         \
+            }                                                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            dist++;                                                            \
+        }                                                                      \
+    }                                                                          \
+    val *name##Get(name *map, SString ky) {                                    \
+        typeof(map->keys[0].k) tempk = ky;                                     \
+        u32 hash = FNVHash32((u8 *)tempk.data, tempk.len);                     \
+                                                                               \
+        u32 idx = hash % map->cap;                                             \
+        u32 dist = 0;                                                          \
+                                                                               \
+        for (u64 i = 0; i < map->cap; i++) {                                   \
+            if (map->keys[idx].m == -1) {                                      \
+                return NULL;                                                   \
+            }                                                                  \
+            if (map->keys[idx].m < dist) {                                     \
+                return NULL;                                                   \
+            }                                                                  \
+                                                                               \
+            if (Sstrcmp(map->keys[idx].k, tempk)) {                            \
+                return &map->vals[idx];                                        \
+            }                                                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            dist++;                                                            \
+        }                                                                      \
+                                                                               \
+        return NULL;                                                           \
+    }                                                                          \
+    void name##Del(name *map, SString ky) {                                    \
+                                                                               \
+        typeof(map->keys[0].k) tempk = ky;                                     \
+                                                                               \
+        u32 hash = FNVHash32((u8 *)tempk.data, tempk.len);                     \
+        u32 idx = hash % map->cap;                                             \
+        u32 dist = 0;                                                          \
+                                                                               \
+        for (u64 i = 0; i < map->cap; i++) {                                   \
+            if (map->keys[idx].m == -1) {                                      \
+                return;                                                        \
+            }                                                                  \
+            if (map->keys[idx].m < dist) {                                     \
+                return;                                                        \
+            }                                                                  \
+                                                                               \
+            if (Sstrcmp(map->keys[idx].k, tempk)) {                            \
+                map->size--;                                                   \
+                idx = (idx + 1) % map->cap;                                    \
+                break;                                                         \
+            }                                                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            dist++;                                                            \
+        }                                                                      \
+                                                                               \
+        u32 prev = (idx + map->cap - 1) % map->cap;                            \
+        while (map->keys[idx].m != -1 && map->keys[idx].m > 0) {               \
+            map->keys[prev] = map->keys[idx];                                  \
+            map->keys[prev].m -= 1;                                            \
+                                                                               \
+            map->vals[prev] = map->vals[idx];                                  \
+            idx = (idx + 1) % map->cap;                                        \
+            prev = (idx + map->cap - 1) % map->cap;                            \
+        }                                                                      \
+                                                                               \
+        map->keys[prev].m = -1;                                                \
+    }                                                                          \
+    void name##Reserve(name *map, u64 size) {                                  \
+        u32 oldcap = map->cap;                                                 \
+        while (map->cap < size) {                                              \
+            map->cap = map->cap ? map->cap * 2 : MIN_CAP;                      \
+        }                                                                      \
+                                                                               \
+        typeof(map->keys) oldkeys = map->keys;                                 \
+        typeof(map->vals) oldvals = map->vals;                                 \
+                                                                               \
+        map->keys = Alloc(map->a, map->cap * sizeof(map->keys[0]));            \
+        map->vals = Alloc(map->a, map->cap * sizeof(map->vals[0]));            \
+                                                                               \
+        memset(map->keys, -1, map->cap * sizeof(map->keys[0]));                \
+        for (u32 i = 0; i < oldcap; i++) {                                     \
+            if (oldkeys[i].m == -1)                                            \
+                continue;                                                      \
+                                                                               \
+            typeof(map->keys[0].k) tempk = oldkeys[i].k;                       \
+            typeof(map->vals[0]) tempv = oldvals[i];                           \
+            u32 hash = FNVHash32((u8 *)tempk.data, tempk.len);                 \
+                                                                               \
+            u32 idx = hash % map->cap;                                         \
+            u32 dist = 0;                                                      \
+                                                                               \
+            for (u64 i = 0; i < map->cap; i++) {                               \
+                if (map->keys[idx].m == -1) {                                  \
+                    map->keys[idx].k = tempk;                                  \
+                    map->keys[idx].m = dist;                                   \
+                    map->vals[idx] = tempv;                                    \
+                    break;                                                     \
+                }                                                              \
+                if (map->keys[idx].m < dist) {                                 \
+                    typeof(map->keys[0].k) tmpkey = map->keys[idx].k;          \
+                    typeof(map->vals[0]) tmpval = map->vals[idx];              \
+                    u32 tmpdist = map->keys[idx].m;                            \
+                                                                               \
+                    map->keys[idx].k = tempk;                                  \
+                    map->keys[idx].m = dist;                                   \
+                    map->vals[idx] = tempv;                                    \
+                                                                               \
+                    tempk = tmpkey;                                            \
+                    tempv = tmpval;                                            \
+                    dist = tmpdist;                                            \
+                }                                                              \
+                                                                               \
+                if (Sstrcmp(map->keys[idx].k, tempk)) {                        \
+                    map->vals[idx] = tempv;                                    \
+                    break;                                                     \
+                }                                                              \
+                idx = (idx + 1) % map->cap;                                    \
+                dist++;                                                        \
+            }                                                                  \
+        }                                                                      \
+                                                                               \
+        Free(map->a, oldkeys, oldcap * sizeof(map->keys[0]));                  \
+        Free(map->a, oldvals, oldcap * sizeof(map->vals[0]));                  \
+    }                                                                          \
+    void name##Free(name *map) {                                               \
+        Free(map->a, map->keys, map->cap * sizeof(map->keys[0]));              \
+        Free(map->a, map->vals, map->cap * sizeof(map->vals[0]));              \
+    }
 
-#define DS_IMPL
-#ifdef DS_IMPL
-
-#endif
 #endif

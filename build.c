@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
                 sb_add_include_path("lib/include");
 
                 sb_add_flag("g");
+                sb_add_flag("fsanitize=address");
                 sb_link_library("m");
 
                 char buf[PATH_MAX + 1] = {0};
