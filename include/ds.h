@@ -110,6 +110,7 @@
     void name##Ins(name *, key, val);                                          \
     val *name##Get(name *, key);                                               \
     void name##Del(name *, key);                                               \
+    void name##Clear(name *);                                                  \
     void name##Free(name *);
 
 #define DefHashMapImpl(name, key, val)                                         \
@@ -324,6 +325,10 @@
                                                                                \
         Free(map->a, oldkeys, oldcap * sizeof(map->keys[0]));                  \
         Free(map->a, oldvals, oldcap * sizeof(map->vals[0]));                  \
+    }                                                                          \
+    void name##Clear(name *map) {                                              \
+        map->size = 0;                                                         \
+        memset(map->keys, -1, map->cap * sizeof(map->keys[0]));                \
     }                                                                          \
     void name##Free(name *map) {                                               \
         Free(map->a, map->keys, map->cap * sizeof(map->keys[0]));              \
@@ -558,6 +563,10 @@
                                                                                \
         Free(map->a, oldkeys, oldcap * sizeof(map->keys[0]));                  \
         Free(map->a, oldvals, oldcap * sizeof(map->vals[0]));                  \
+    }                                                                          \
+    void name##Clear(name *map) {                                              \
+        map->size = 0;                                                         \
+        memset(map->keys, -1, map->cap * sizeof(map->keys[0]));                \
     }                                                                          \
     void name##Free(name *map) {                                               \
         Free(map->a, map->keys, map->cap * sizeof(map->keys[0]));              \
