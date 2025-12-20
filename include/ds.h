@@ -600,8 +600,8 @@
                                p->cap * sizeof(item));                         \
             p->freelist = Realloc(p->a, p->freelist, oldcap * sizeof(u32),     \
                                   p->cap * sizeof(u32));                       \
-            memset(&p->slots[oldcap], 0, (p->cap - oldcap) * sizeof(item));    \
             for (u32 i = oldcap; i < p->cap; i++) {                            \
+                p->slots[i] = (item){};                                        \
                 p->freelist[p->freesize++] = i;                                \
             }                                                                  \
         }                                                                      \
