@@ -210,6 +210,8 @@
         }                                                                      \
     }                                                                          \
     val *name##Get(name *map, key ky) {                                        \
+        if (!map->cap)                                                         \
+            return NULL;                                                       \
         typeof(map->keys[0].k) tempk = ky;                                     \
         u32 hash = FNVHash32((u8 *)&tempk, sizeof(tempk));                     \
                                                                                \

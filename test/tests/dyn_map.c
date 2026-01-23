@@ -10,6 +10,7 @@ DefStringMapImpl(simap, u32);
 
 int main() {
     imap map = {GlobalAllocator};
+    u32* test = imapGet(&map, 3);
     imapReserve(&map, 32);
 
     for (u32 i = 1; i <= 28; i++) { imapIns(&map, 2 * i, i); }
