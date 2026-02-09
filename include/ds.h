@@ -81,9 +81,9 @@
 
 #define dynExt(array, vals, num)                                               \
     do {                                                                       \
-        dynResize(array, array.size + num);                                    \
-        for (u64 i = array.size - num; i < array.size; i++) {                  \
-            array.data[i] = vals[i - array.size + num];                        \
+        dynResize(array, array.size + (num));                                    \
+        for (u64 i = array.size - (num); i < array.size; i++) {                  \
+            array.data[i] = (vals)[i - array.size + (num)];                        \
         }                                                                      \
     } while (0)
 
