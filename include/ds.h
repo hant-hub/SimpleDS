@@ -73,7 +73,7 @@
 
 #define dynDel(array, idx)                                                     \
     do {                                                                       \
-        for (u32 i = idx; i < ints.size - 1; i++) {                            \
+        for (u32 i = idx; i < array.size - 1; i++) {                            \
             array.data[i] = array.data[i + 1];                                 \
         }                                                                      \
         dynResize(array, array.size - 1);                                      \
